@@ -200,7 +200,7 @@
   /* ---------- Render ---------- */
   async function renderChapter(idx, opts = {}) {
     if (idx < 0 || idx >= state.flat.length) return;
-    stopSpeaking();
+    if (!audio.playing || audio.chapterIdx !== idx) stopSpeaking();
     state.current = idx;
     state.settings.current = idx;
     state.settings.section = null;
@@ -228,6 +228,7 @@
     parts.push(`<button class="ch-act" data-act="listen" title="Escuchar capítulo (S)">🔊 <span>Escuchar</span></button>`);
     parts.push(`<button class="ch-act" data-act="askai" title="Preguntar a la IA sobre este capítulo (A)">💬 <span>IA capítulo</span></button>`);
     parts.push(`<button class="ch-act ${bm ? 'active' : ''}" data-bookmark title="Marcar capítulo">${bm ? '★' : '☆'} <span>${bm ? 'Marcado' : 'Marcar'}</span></button>`);
+    parts.push(`<button class="ch-act" data-act="notes" title="Mis notas de este capítulo (N)">📝 <span>Notas</span></button>`);
     parts.push(`<button class="ch-act" data-act="copylink" title="Copiar enlace al capítulo">🔗 <span>Enlace</span></button>`);
     parts.push(`<button class="ch-act" data-act="print" title="Imprimir capítulo">🖨 <span>Imprimir</span></button>`);
     parts.push(`</div>`);
@@ -357,6 +358,7 @@
       const kind = act.dataset.act;
       if (kind === 'listen') toggleSpeak(act);
       else if (kind === 'askai') askAIAboutChapter();
+      else if (kind === 'notes') openNotes();
       else if (kind === 'print') window.print();
       else if (kind === 'copylink') {
         const url = location.href.split('#')[0] + '#ch=' + state.current;
@@ -375,54 +377,191 @@
     }
   });
 
-  /* ---------- Text-to-speech (es-ES) ---------- */
-  function pickSpanishVoice() {
+  /* ---------- Audiobook player (es-ES speechSynthesis) ---------- */
+  const audio = {
+    playing: false,
+    paused: false,
+    chunkIdx: 0,
+    chunks: [],
+    chapterIdx: 0,
+    rate: parseFloat(state.settings.ttsRate) || 1.0,
+    voiceURI: state.settings.ttsVoice || null,
+    autoAdvance: true,
+    sleepUntil: null,
+    sleepTimer: null,
+    errCount: 0,
+  };
+  const player = document.getElementById('audioPlayer');
+  const playerPlay = document.getElementById('apPlay');
+  const playerInfo = document.getElementById('apInfo');
+  const playerRate = document.getElementById('apRate');
+  const playerVoice = document.getElementById('apVoice');
+  const playerSleep = document.getElementById('apSleep');
+
+  function spanishVoices() {
+    return speechSynthesis.getVoices().filter(v => /^es/i.test(v.lang));
+  }
+  function pickVoice() {
     const voices = speechSynthesis.getVoices();
-    return voices.find(v => /es[-_]ES/i.test(v.lang))
-        || voices.find(v => /^es/i.test(v.lang))
-        || null;
-  }
-
-  function toggleSpeak(btn) {
-    if (!('speechSynthesis' in window)) { toast('Tu navegador no soporta lectura en voz alta'); return; }
-    if (state.speaking) { stopSpeaking(); return; }
-    const raw = state.chapters[state.current];
-    const text = chapterPlainText(raw);
-    if (!text.trim()) { toast('Este capítulo no tiene texto para leer'); return; }
-    // Chunk into sentences to avoid engine cutoffs
-    const chunks = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
-    let i = 0;
-    state.speaking = true;
-    if (btn) btn.innerHTML = '⏹ <span>Parar</span>';
-    const speakNext = () => {
-      if (!state.speaking || i >= chunks.length) { stopSpeaking(); return; }
-      const u = new SpeechSynthesisUtterance(chunks[i++].trim());
-      u.lang = 'es-ES';
-      const v = pickSpanishVoice();
-      if (v) u.voice = v;
-      u.rate = 1.0;
-      u.onend = speakNext;
-      u.onerror = () => stopSpeaking();
-      speechSynthesis.speak(u);
-    };
-    // Voices may load async
-    if (speechSynthesis.getVoices().length === 0) {
-      speechSynthesis.onvoiceschanged = () => { speechSynthesis.onvoiceschanged = null; speakNext(); };
-      // Fallback if event never fires
-      setTimeout(() => { if (state.speaking && !speechSynthesis.speaking) speakNext(); }, 400);
-    } else {
-      speakNext();
+    if (audio.voiceURI) {
+      const v = voices.find(v => v.voiceURI === audio.voiceURI);
+      if (v) return v;
     }
-    toast('Leyendo capítulo en voz alta…');
+    return voices.find(v => /es[-_]ES/i.test(v.lang)) || voices.find(v => /^es/i.test(v.lang)) || null;
+  }
+  function populateVoices() {
+    if (!playerVoice) return;
+    const vs = spanishVoices();
+    playerVoice.innerHTML = vs.length
+      ? vs.map(v => `<option value="${v.voiceURI}" ${v.voiceURI === audio.voiceURI ? 'selected' : ''}>${v.name}</option>`).join('')
+      : '<option value="">Voz del sistema</option>';
+  }
+  if ('speechSynthesis' in window) {
+    populateVoices();
+    speechSynthesis.addEventListener?.('voiceschanged', populateVoices);
   }
 
-  function stopSpeaking() {
-    if (!('speechSynthesis' in window)) return;
-    state.speaking = false;
+  function startAudiobook(fromChapter) {
+    if (!('speechSynthesis' in window)) { toast('Tu navegador no soporta lectura en voz alta'); return; }
+    stopAudiobook(true);
+    audio.chapterIdx = typeof fromChapter === 'number' ? fromChapter : state.current;
+    loadChapter(audio.chapterIdx).then(raw => {
+      const ch = state.flat[audio.chapterIdx];
+      const text = chapterPlainText(raw);
+      if (!text.trim()) {
+        // Skip empty chapters when auto-advancing
+        if (audio.autoAdvance && audio.chapterIdx < state.flat.length - 1) {
+          startAudiobook(audio.chapterIdx + 1);
+        } else {
+          toast('Este capítulo no tiene texto para leer');
+        }
+        return;
+      }
+      audio.chunks = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+      audio.chunkIdx = 0;
+      audio.errCount = 0;
+      audio.playing = true;
+      audio.paused = false;
+      showPlayer();
+      updatePlayerUI();
+      if (audio.chapterIdx !== state.current) renderChapter(audio.chapterIdx);
+      speakLoop();
+    });
+  }
+
+  function speakLoop() {
+    if (!audio.playing || audio.paused) return;
+    if (audio.sleepUntil && Date.now() > audio.sleepUntil) { stopAudiobook(); toast('Temporizador: lectura detenida'); return; }
+    if (audio.chunkIdx >= audio.chunks.length) {
+      // Chapter finished → advance
+      if (audio.autoAdvance && audio.chapterIdx < state.flat.length - 1) {
+        toast('Siguiente capítulo…');
+        startAudiobook(audio.chapterIdx + 1);
+      } else {
+        stopAudiobook();
+        toast('Lectura terminada');
+      }
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(audio.chunks[audio.chunkIdx].trim());
+    u.lang = 'es-ES';
+    const v = pickVoice();
+    if (v) u.voice = v;
+    u.rate = audio.rate;
+    u.onend = () => { audio.errCount = 0; audio.chunkIdx++; updatePlayerUI(); speakLoop(); };
+    u.onerror = () => {
+      audio.errCount++;
+      if (audio.errCount >= 5) {
+        stopAudiobook();
+        toast('No hay voz de síntesis disponible en este dispositivo');
+        return;
+      }
+      audio.chunkIdx++;
+      speakLoop();
+    };
+    speechSynthesis.speak(u);
+  }
+
+  function pauseAudiobook() {
+    if (!audio.playing) return;
+    audio.paused = true;
     speechSynthesis.cancel();
+    updatePlayerUI();
+  }
+  function resumeAudiobook() {
+    if (!audio.playing || !audio.paused) return;
+    audio.paused = false;
+    updatePlayerUI();
+    speakLoop();
+  }
+  function stopAudiobook(silent) {
+    audio.playing = false;
+    audio.paused = false;
+    audio.chunks = [];
+    audio.chunkIdx = 0;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    clearTimeout(audio.sleepTimer);
+    audio.sleepUntil = null;
+    hidePlayer();
     const btn = els.content.querySelector('[data-act="listen"]');
     if (btn) btn.innerHTML = '🔊 <span>Escuchar</span>';
+    if (playerSleep) playerSleep.value = '';
   }
+
+  function showPlayer() { if (player) player.hidden = false; }
+  function hidePlayer() { if (player) player.hidden = true; }
+  function updatePlayerUI() {
+    if (!player || player.hidden) return;
+    const ch = state.flat[audio.chapterIdx];
+    const pct = audio.chunks.length ? Math.round((audio.chunkIdx / audio.chunks.length) * 100) : 0;
+    if (playerInfo) playerInfo.textContent = `${ch ? (ch.chTag || ch.title).slice(0, 26) : ''} · ${pct}%`;
+    if (playerPlay) playerPlay.textContent = audio.paused ? '▶' : '⏸';
+    const btn = els.content.querySelector('[data-act="listen"]');
+    if (btn && audio.playing) btn.innerHTML = '⏹ <span>Parar</span>';
+  }
+
+  if (player) {
+    document.getElementById('apPrev').addEventListener('click', () => {
+      if (audio.chapterIdx > 0) startAudiobook(audio.chapterIdx - 1);
+    });
+    document.getElementById('apNext').addEventListener('click', () => {
+      if (audio.chapterIdx < state.flat.length - 1) startAudiobook(audio.chapterIdx + 1);
+    });
+    playerPlay.addEventListener('click', () => {
+      if (audio.paused) resumeAudiobook(); else pauseAudiobook();
+    });
+    document.getElementById('apStop').addEventListener('click', () => stopAudiobook());
+    playerRate.addEventListener('change', () => {
+      audio.rate = parseFloat(playerRate.value) || 1;
+      state.settings.ttsRate = audio.rate;
+      saveSettings();
+      if (audio.playing && !audio.paused) { speechSynthesis.cancel(); speakLoop(); }
+    });
+    playerVoice.addEventListener('change', () => {
+      audio.voiceURI = playerVoice.value || null;
+      state.settings.ttsVoice = audio.voiceURI;
+      saveSettings();
+      if (audio.playing && !audio.paused) { speechSynthesis.cancel(); speakLoop(); }
+    });
+    playerSleep.addEventListener('change', () => {
+      const mins = parseInt(playerSleep.value, 10);
+      clearTimeout(audio.sleepTimer);
+      if (mins) {
+        audio.sleepUntil = Date.now() + mins * 60000;
+        audio.sleepTimer = setTimeout(() => { stopAudiobook(); toast('Temporizador: lectura detenida'); }, mins * 60000);
+        toast(`Se detendrá en ${mins} min`);
+      } else {
+        audio.sleepUntil = null;
+      }
+    });
+    playerRate.value = String(audio.rate);
+  }
+
+  function toggleSpeak() {
+    if (audio.playing) stopAudiobook();
+    else startAudiobook(state.current);
+  }
+  function stopSpeaking() { if (audio.playing) stopAudiobook(); }
 
   /* ---------- Ask AI about chapter / selection ---------- */
   function askAIAboutChapter() {
@@ -520,6 +659,7 @@
     else if (k === 'f') toggleFocus();
     else if (k === 's') { const btn = els.content.querySelector('[data-act="listen"]'); toggleSpeak(btn); }
     else if (k === 'a') askAIAboutChapter();
+    else if (k === 'n') openNotes();
   });
 
   /* ---------- TOC toggle (mobile) ---------- */
@@ -560,7 +700,7 @@
   if (state.settings.focus) document.body.classList.add('focus-mode');
 
   /* ---------- Modal helpers ---------- */
-  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal'];
+  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal'];
   function openModal(id) {
     MODAL_IDS.forEach(other => { if (other !== id) closeModal(other); });
     const m = document.getElementById(id);
@@ -896,6 +1036,82 @@
     if (!q) { toast('Escribe primero una pregunta'); return; }
     try { await navigator.clipboard.writeText(q); toast('Pregunta copiada'); }
     catch { toast('No se pudo copiar'); }
+  });
+
+  /* ---------- Voice dictation (Web Speech API) ---------- */
+  const btnMic = document.getElementById('btnMic');
+  let recog = null, recogActive = false;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (btnMic) {
+    if (!SR) {
+      btnMic.title = 'Dictado no soportado en este navegador (usa Chrome o Edge)';
+    }
+    btnMic.addEventListener('click', () => {
+      if (!SR) { toast('Dictado no soportado — usa Chrome/Edge o escribe la pregunta'); return; }
+      if (recogActive) { recog.stop(); return; }
+      recog = new SR();
+      recog.lang = 'es-ES';
+      recog.interimResults = true;
+      recog.continuous = false;
+      const base = aiQuery.value;
+      recog.onresult = e => {
+        let txt = '';
+        for (const r of e.results) txt += r[0].transcript;
+        aiQuery.value = base + txt;
+      };
+      recog.onstart = () => { recogActive = true; btnMic.classList.add('rec'); btnMic.textContent = '⏹'; toast('Escuchando… habla ahora'); };
+      recog.onend = () => { recogActive = false; btnMic.classList.remove('rec'); btnMic.textContent = '🎤'; aiQuery.focus(); };
+      recog.onerror = ev => {
+        recogActive = false; btnMic.classList.remove('rec'); btnMic.textContent = '🎤';
+        toast(ev.error === 'not-allowed' ? 'Permiso de micrófono denegado' : 'No se pudo escuchar — inténtalo de nuevo');
+      };
+      try { recog.start(); } catch { toast('No se pudo iniciar el micrófono'); }
+    });
+  }
+
+  /* ---------- Notes per chapter ---------- */
+  const notesModalId = 'notesModal';
+  const notesArea = document.getElementById('notesArea');
+  const notesTitle = document.getElementById('notesChapter');
+  function getNotes() { return state.settings.notes || {}; }
+  function openNotes() {
+    const ch = state.flat[state.current];
+    if (notesTitle) notesTitle.textContent = `${ch.chTag ? ch.chTag + ' · ' : ''}${ch.title}`;
+    if (notesArea) notesArea.value = getNotes()[state.current] || '';
+    openModal(notesModalId);
+    setTimeout(() => notesArea && notesArea.focus(), 50);
+  }
+  if (notesArea) {
+    let saveT = null;
+    notesArea.addEventListener('input', () => {
+      clearTimeout(saveT);
+      saveT = setTimeout(() => {
+        const notes = getNotes();
+        if (notesArea.value.trim()) notes[state.current] = notesArea.value;
+        else delete notes[state.current];
+        state.settings.notes = notes;
+        saveSettings();
+      }, 300);
+    });
+  }
+  const btnNotesExport = document.getElementById('btnNotesExport');
+  if (btnNotesExport) btnNotesExport.addEventListener('click', () => {
+    const notes = getNotes();
+    const keys = Object.keys(notes);
+    if (!keys.length) { toast('No tienes notas todavía'); return; }
+    const lines = ['MIS NOTAS — La IA y Mi Motor', ''];
+    keys.sort((a, b) => a - b).forEach(k => {
+      const ch = state.flat[k];
+      lines.push(`■ ${ch ? (ch.chTag ? ch.chTag + ' · ' : '') + ch.title : 'Capítulo ' + k}`);
+      lines.push(notes[k], '');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'mis-notas-la-ia-y-mi-motor.txt';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    toast('Notas exportadas');
   });
 
   /* ---------- Welcome ---------- */

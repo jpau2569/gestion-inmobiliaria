@@ -80,6 +80,29 @@
   <!-- Floating "ask AI about selection" -->
   <button id="selAsk" class="sel-ask" hidden>💬 Preguntar a la IA</button>
 
+  <!-- Audiobook player -->
+  <div id="audioPlayer" class="audio-player" hidden role="region" aria-label="Reproductor de audiolibro">
+    <button id="apPrev" class="ap-btn" title="Capítulo anterior">⏮</button>
+    <button id="apPlay" class="ap-btn main" title="Pausar / Reanudar">⏸</button>
+    <button id="apNext" class="ap-btn" title="Capítulo siguiente">⏭</button>
+    <span id="apInfo" class="ap-info"></span>
+    <select id="apRate" class="ap-select" title="Velocidad de lectura">
+      <option value="0.8">0.8×</option>
+      <option value="1" selected>1×</option>
+      <option value="1.25">1.25×</option>
+      <option value="1.5">1.5×</option>
+      <option value="1.75">1.75×</option>
+    </select>
+    <select id="apVoice" class="ap-select voice" title="Voz"></select>
+    <select id="apSleep" class="ap-select" title="Temporizador de apagado">
+      <option value="">⏰</option>
+      <option value="15">15 min</option>
+      <option value="30">30 min</option>
+      <option value="60">60 min</option>
+    </select>
+    <button id="apStop" class="ap-btn" title="Detener lectura">✕</button>
+  </div>
+
   <!-- QR modal -->
   <div id="qrModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
     <div class="modal-body">
@@ -157,7 +180,10 @@
         <button class="icon-btn modal-close" data-close="aiModal" aria-label="Cerrar">×</button>
       </header>
       <p class="modal-sub">Tres asistentes recomendados como complemento al libro. Escribe tu duda y elige uno: se abre con tu pregunta lista para enviar.</p>
-      <textarea id="aiQuery" class="ai-query" rows="3" placeholder="Ej.: Mi coche pierde potencia al acelerar en frío, ¿qué puede ser?"></textarea>
+      <div class="ai-input-row">
+        <textarea id="aiQuery" class="ai-query" rows="3" placeholder="Ej.: Mi coche pierde potencia al acelerar en frío, ¿qué puede ser?"></textarea>
+        <button id="btnMic" class="mic-btn" title="Dictar pregunta por voz" aria-label="Dictar por voz">🎤</button>
+      </div>
       <div class="ai-suggest">
         <span>Sugerencias:</span>
         <button type="button" class="chip" data-suggest="Actúa como mecánico senior. Diagnostica este síntoma paso a paso preguntándome lo que necesites: ">Síntoma</button>
@@ -180,6 +206,21 @@
         </button>
       </div>
       <p class="ai-foot">Se abrirá en una pestaña nueva. <button id="btnAICopy" class="btn ghost small">Copiar pregunta</button></p>
+    </div>
+  </div>
+
+  <!-- Notes modal -->
+  <div id="notesModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2 id="notesTitle">📝 Mis notas</h2>
+        <button class="icon-btn modal-close" data-close="notesModal" aria-label="Cerrar">×</button>
+      </header>
+      <p class="modal-sub" id="notesChapter"></p>
+      <textarea id="notesArea" class="ai-query notes-area" rows="8" placeholder="Escribe aquí tus apuntes de este capítulo… Se guardan solos en este dispositivo."></textarea>
+      <div class="modal-actions">
+        <button id="btnNotesExport" class="btn ghost">⬇ Exportar todas mis notas (.txt)</button>
+      </div>
     </div>
   </div>
 
