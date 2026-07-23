@@ -1,0 +1,21 @@
+{
+  "name": "La IA y Mi Motor",
+  "short_name": "IA Motor",
+  "description": "Libro completo de Jose Paulino: usa Claude y agentes de IA para diagnosticar, reparar y entender cualquier vehículo. Lectura offline, voz alta, prompts ejecutables y QR.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "categories": ["books", "education", "productivity"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Buscar", "url": "./?action=search", "description": "Buscar texto o código OBD en el libro" },
+    { "name": "Compartir QR", "url": "./?action=qr", "description": "Mostrar código QR de la app" }
+  ]
+}

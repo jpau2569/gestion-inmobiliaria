@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f5ef" media="(prefers-color-scheme: light)" />
+  <meta name="description" content="La IA y Mi Motor — Libro completo en formato PWA con QR, lectura en voz alta, prompts ejecutables y asistentes IA integrados." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="La IA y Mi Motor" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>La IA y Mi Motor — PWA</title>
+</head>
+<body data-theme="auto" data-font="m">
+  <header class="app-header">
+    <button id="btnToc" class="icon-btn num" aria-label="Índice de capítulos" title="Abrir índice">
+      <span class="num-badge">1</span>
+    </button>
+    <div class="brand">
+      <strong>La IA y Mi Motor</strong>
+      <span class="brand-sub">Jose Paulino</span>
+    </div>
+    <div class="header-actions">
+      <button id="btnSearch" class="icon-btn num" aria-label="Buscar en el libro" title="Buscar (Ctrl+K)">
+        <span class="num-badge">2</span>
+      </button>
+      <button id="btnAI" class="icon-btn ai" aria-label="Preguntar a la IA" title="Preguntar a Claude · Gemini · Perplexity (A)">
+        <span class="ai-label">IA</span>
+      </button>
+      <button id="btnBookmark" class="icon-btn" aria-label="Marcadores" title="Marcadores">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M17 3H7a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2Z"/></svg>
+      </button>
+      <button id="btnQR" class="icon-btn num" aria-label="QR y descargar app" title="Compartir QR · Descargar app (móvil/PC)">
+        <span class="num-badge">3</span>
+      </button>
+      <button id="btnFocus" class="icon-btn" aria-label="Modo enfoque" title="Modo enfoque (F)">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M5 5h4V3H3v6h2V5Zm14 0v4h2V3h-6v2h4ZM5 19v-4H3v6h6v-2H5Zm14 0h-4v2h6v-6h-2v4Z"/></svg>
+      </button>
+      <button id="btnFont" class="icon-btn" aria-label="Tamaño de texto" title="Tamaño de texto">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M5 4v3h5v12h3V7h5V4H5Z"/></svg>
+      </button>
+      <button id="btnTheme" class="icon-btn" aria-label="Tema" title="Tema">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z"/></svg>
+      </button>
+      <button id="btnInstall" class="icon-btn install" hidden aria-label="Instalar" title="Instalar como app">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M5 20h14v-2H5v2Zm7-18-5 5h3v6h4v-6h3l-5-5Z"/></svg>
+        <span>Instalar</span>
+      </button>
+    </div>
+    <div class="read-progress" aria-hidden="true"><div id="readProgressBar"></div></div>
+  </header>
+
+  <button id="focusExit" class="focus-exit" aria-label="Salir del modo enfoque" title="Salir del modo enfoque (F)">✕ Salir de enfoque</button>
+
+  <aside id="toc" class="toc" aria-label="Índice de contenidos">
+    <div class="toc-head">
+      <h2>Índice</h2>
+      <button id="btnTocClose" class="icon-btn" aria-label="Cerrar índice">×</button>
+    </div>
+    <div class="toc-progress" aria-hidden="true"><div id="tocProgressBar"></div></div>
+    <nav id="tocNav"></nav>
+  </aside>
+
+  <main id="reader" class="reader" tabindex="-1">
+    <article id="content" class="content">
+      <div class="loading">Cargando libro…</div>
+    </article>
+
+    <nav class="pager" aria-label="Navegación de capítulos">
+      <button id="btnPrev" class="pager-btn">← Anterior</button>
+      <div id="pagerInfo" class="pager-info"></div>
+      <button id="btnNext" class="pager-btn">Siguiente →</button>
+    </nav>
+  </main>
+
+  <!-- Floating "ask AI about selection" -->
+  <button id="selAsk" class="sel-ask" hidden>💬 Preguntar a la IA</button>
+
+  <!-- QR modal -->
+  <div id="qrModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2 id="qrTitle">Comparte el libro</h2>
+        <button class="icon-btn modal-close" data-close="qrModal" aria-label="Cerrar">×</button>
+      </header>
+      <p class="modal-sub">Escanea con tu móvil para abrir esta misma PWA en el capítulo actual. También puedes <a id="qrLinkOpen" target="_blank" rel="noopener">abrir el enlace</a>.</p>
+      <div id="qrWarn" class="qr-warn" hidden>
+        Estás abriendo el libro desde tu equipo (<code>file://</code>). Este QR solo te funcionará a ti. Para compartirlo con otros, usa <strong>Descargar app</strong> y envía el archivo, o súbelo a un hosting estático.
+      </div>
+      <div id="qrCanvas" class="qr-canvas" role="img" aria-label="Código QR del libro"></div>
+      <div class="qr-url" id="qrUrl"></div>
+      <div class="modal-actions">
+        <button id="btnQRDownload" class="btn">Descargar QR (PNG)</button>
+        <button id="btnQRCopy" class="btn ghost">Copiar enlace</button>
+        <button id="btnQRShare" class="btn ghost">Compartir…</button>
+        <button id="btnAppDownload" class="btn">⬇ Descargar app (móvil/PC)</button>
+      </div>
+      <details class="qr-options">
+        <summary>Opciones avanzadas</summary>
+        <label>URL personalizada
+          <input id="qrCustomUrl" type="url" placeholder="https://…" />
+        </label>
+        <button id="btnQRRegen" class="btn ghost">Regenerar</button>
+      </details>
+    </div>
+  </div>
+
+  <!-- Search modal -->
+  <div id="searchModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="searchTitle">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2 id="searchTitle">Buscar en el libro</h2>
+        <button class="icon-btn modal-close" data-close="searchModal" aria-label="Cerrar">×</button>
+      </header>
+      <input id="searchInput" class="search-input" type="search" placeholder="Palabra, frase o código OBD (ej. P0300)…" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <div id="searchResults" class="search-results" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <!-- First-launch welcome banner -->
+  <div id="welcome" class="welcome" hidden>
+    <div class="welcome-body">
+      <strong>¡Bienvenido a La IA y Mi Motor!</strong>
+      <p class="welcome-sub">En la barra de arriba tienes botones numerados. Toca cualquier opción para probarla ahora:</p>
+      <div class="welcome-steps">
+        <button type="button" class="welcome-step" data-welcome-action="toc">
+          <span class="num-chip">1</span>
+          <span class="step-text"><strong>Índice</strong><span class="step-desc">abrir el listado de capítulos</span></span>
+        </button>
+        <button type="button" class="welcome-step" data-welcome-action="search">
+          <span class="num-chip">2</span>
+          <span class="step-text"><strong>Buscar</strong><span class="step-desc">palabras, frases o códigos OBD (P0300)</span></span>
+        </button>
+        <button type="button" class="welcome-step" data-welcome-action="qr">
+          <span class="num-chip">3</span>
+          <span class="step-text"><strong>QR &amp; Descargar</strong><span class="step-desc">comparte o instálala en móvil/PC</span></span>
+        </button>
+        <button type="button" class="welcome-step" data-welcome-action="ai">
+          <span class="num-chip ai">IA</span>
+          <span class="step-text"><strong>Pregunta a la IA</strong><span class="step-desc">Claude · Gemini · Perplexity</span></span>
+        </button>
+      </div>
+      <p class="welcome-tips">Extras: cada capítulo tiene 🔊 lectura en voz alta y los prompts del libro llevan botones para enviarlos a la IA con un clic. Teclas: ←/→ capítulos · F enfoque · S escuchar · A preguntar.</p>
+      <button id="btnWelcomeClose" class="btn">Empezar a leer</button>
+    </div>
+  </div>
+
+  <!-- AI helpers modal -->
+  <div id="aiModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <div class="modal-body">
+      <header class="modal-head">
+        <h2 id="aiTitle">Pregunta a la IA</h2>
+        <button class="icon-btn modal-close" data-close="aiModal" aria-label="Cerrar">×</button>
+      </header>
+      <p class="modal-sub">Tres asistentes recomendados como complemento al libro. Escribe tu duda y elige uno: se abre con tu pregunta lista para enviar.</p>
+      <textarea id="aiQuery" class="ai-query" rows="3" placeholder="Ej.: Mi coche pierde potencia al acelerar en frío, ¿qué puede ser?"></textarea>
+      <div class="ai-suggest">
+        <span>Sugerencias:</span>
+        <button type="button" class="chip" data-suggest="Actúa como mecánico senior. Diagnostica este síntoma paso a paso preguntándome lo que necesites: ">Síntoma</button>
+        <button type="button" class="chip" data-suggest="Explícame qué significa el código OBD ">Código OBD</button>
+        <button type="button" class="chip" data-suggest="Resúmeme en 6 puntos clave el capítulo: ">Resumen capítulo</button>
+        <button type="button" class="chip" data-suggest="Compárame estos dos presupuestos de taller y dime cuál tiene más sentido: ">Presupuesto</button>
+      </div>
+      <div class="ai-grid">
+        <button class="ai-card claude" data-ai="claude">
+          <span class="ai-name">Claude</span>
+          <span class="ai-sub">El asistente del libro · claude.ai</span>
+        </button>
+        <button class="ai-card gemini" data-ai="gemini">
+          <span class="ai-name">Gemini</span>
+          <span class="ai-sub">Google AI Studio · aistudio.google.com</span>
+        </button>
+        <button class="ai-card perplexity" data-ai="perplexity">
+          <span class="ai-name">Perplexity</span>
+          <span class="ai-sub">Búsqueda con fuentes · perplexity.ai</span>
+        </button>
+      </div>
+      <p class="ai-foot">Se abrirá en una pestaña nueva. <button id="btnAICopy" class="btn ghost small">Copiar pregunta</button></p>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- QR generator: vendored locally for full offline operation -->
+  <script src="data.js"></script>
+  <script src="vendor-qrcode.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
