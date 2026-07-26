@@ -1,5 +1,5 @@
 /* Service worker: offline-first cache for La IA y Mi Motor PWA (supreme) */
-const VERSION = 'v7.0.0';
+const VERSION = 'v8.0.0';
 const STATIC_CACHE = `static-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -10,6 +10,7 @@ const PRECACHE = [
   './app.js',
   './vendor-qrcode.js',
   './data.js',
+  './art.js',
   './manifest.webmanifest',
   './icon.svg',
 ];

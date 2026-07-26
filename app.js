@@ -265,6 +265,12 @@
     document.title = `${ch.chTag ? ch.chTag + ' · ' : ''}${ch.title} — La IA y Mi Motor`;
   }
 
+  function artFor(text) {
+    const A = window.__ART__;
+    if (!A) return null;
+    return { key: A.match(text), svg: A.art[A.match(text)] };
+  }
+
   /* Inline visual infographic for a lesson, embedded in the reading flow */
   function lessonCard(s, si) {
     const allParas = [...(s.paragraphs || []), ...((s.subsections || []).flatMap(x => x.paragraphs || []))];
@@ -273,9 +279,12 @@
     const bullets = allParas.filter(p => p.list).slice(0, 3).map(p => trimTo(p.text, 90));
     const key = !bullets.length ? allParas.find(p => !p.list && p.text.length > 40 && !/^Pregunta de reflexion/i.test(p.text)) : null;
     const subCount = (s.subsections || []).filter(x => x.title).length;
+    const artInfo = artFor(s.title + ' ' + allParas.slice(0, 6).map(p => p.text).join(' '));
     const out = [`<aside class="lesson-card" aria-label="Infografía de la lección">`];
     out.push(`<div class="lc-head"><span class="lc-num">${si + 1}</span><span class="lc-label">INFOGRAFÍA · LECCIÓN ${si + 1}</span>`);
     out.push(`<button class="lc-play" data-lc-play="${si}" title="Ver esta lección como infografía animada">▶ Ver animada</button></div>`);
+    out.push('<div class="lc-flex">');
+    if (artInfo) out.push(`<div class="lc-art" aria-hidden="true">${artInfo.svg}</div>`);
     out.push('<div class="lc-body">');
     if (stat) out.push(`<div class="lc-stat">${escapeHtml(stat)}</div>`);
     if (bullets.length) {
@@ -284,7 +293,7 @@
       out.push(`<p class="lc-key">${escapeHtml(trimTo(key.text, 160))}</p>`);
     }
     if (subCount >= 2) out.push(`<div class="lc-meta">${subCount} apartados en esta lección</div>`);
-    out.push('</div></aside>');
+    out.push('</div></div></aside>');
     return out.join('');
   }
 
@@ -1189,6 +1198,7 @@
       tag: meta.chTag || 'La IA y Mi Motor',
       title: meta.title,
       sub: `≈ ${readingMinutes(raw)} min · ${(raw.sections || []).length || 1} lecciones`,
+      art: (artFor(meta.title) || {}).svg,
     });
     const firstIntro = (raw.intro || []).find(p => !p.list && p.text.length > 40);
     if (firstIntro) {
@@ -1205,6 +1215,7 @@
         title: s.title,
         text: key ? trimTo(key.text, 190) : '',
         stat,
+        art: (artFor(s.title + ' ' + paras.slice(0, 4).map(p => p.text).join(' ')) || {}).svg,
       });
       const bl = paras.filter(p => p.list).slice(0, 4).map(p => trimTo(p.text, 64));
       if (bl.length >= 3) slides.push({ kind: 'bullets', tag: `Lección ${i + 1} · claves`, title: '', bullets: bl });
@@ -1225,12 +1236,13 @@
       tag: `${meta.chTag || meta.title} · Lección ${secIdx + 1}`,
       title: s.title || meta.title,
       sub: 'Infografía de la lección',
+      art: (artFor((s.title || '') + ' ' + (s.paragraphs || []).slice(0, 4).map(p => p.text).join(' ')) || {}).svg,
     });
     const allParas = [...(s.paragraphs || []), ...((s.subsections || []).flatMap(x => (x.title ? [{ text: x.title + '.', list: false }] : []).concat(x.paragraphs || [])))];
     const keyTexts = allParas.filter(p => !p.list && p.text.length > 40 && !/^Pregunta de reflexion/i.test(p.text)).slice(0, 4);
     keyTexts.forEach((p, i) => {
       const stat = findStat(p.text);
-      slides.push({ kind: 'section', tag: `Idea ${i + 1}`, title: '', text: trimTo(p.text, 210), stat });
+      slides.push({ kind: 'section', tag: `Idea ${i + 1}`, title: '', text: trimTo(p.text, 210), stat, art: (artFor(p.text) || {}).svg });
     });
     const bullets = allParas.filter(p => p.list).slice(0, 5).map(p => trimTo(p.text, 70));
     if (bullets.length >= 2) {
@@ -1281,6 +1293,7 @@
     clearTimeout(ig.timer);
     const s = ig.slides[i];
     const parts = [`<div class="ig-inner kind-${s.kind}">`];
+    if (s.art) parts.push(`<div class="ig-art" aria-hidden="true">${s.art}</div>`);
     if (s.tag) parts.push(`<div class="ig-tag">${escapeHtml(s.tag)}</div>`);
     if (s.title) parts.push(`<div class="ig-title">${escapeHtml(s.title)}</div>`);
     if (s.stat) parts.push(`<div class="ig-stat">${escapeHtml(s.stat)}</div>`);
