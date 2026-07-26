@@ -1,9 +1,44 @@
-/* Technical part illustrations (SVG, offline) + keyword matcher */
+/* Technical part illustrations (SVG, offline) + keyword matcher
+   Futuristic 3D style: metallic + neon gradients, glow halo, depth shadow */
 window.__ART__ = (() => {
-  const S = (inner) => `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-  const A = '#c8631f'; // accent
-  const G = '#9a938a'; // grey
-  const F = 'rgba(150,140,125,.18)'; // soft fill
+  const DEFS = `<defs>
+    <linearGradient id="gaMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e8edf4"/><stop offset=".45" stop-color="#9aa7b8"/>
+      <stop offset=".55" stop-color="#5c6a7d"/><stop offset="1" stop-color="#8b98ab"/>
+    </linearGradient>
+    <linearGradient id="gaNeon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd29e"/><stop offset=".5" stop-color="#ff8a3d"/>
+      <stop offset="1" stop-color="#e35b13"/>
+    </linearGradient>
+    <linearGradient id="gaCyan" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9be8ff"/><stop offset="1" stop-color="#2bb3d8"/>
+    </linearGradient>
+    <radialGradient id="gaHalo" cx=".5" cy=".42" r=".65">
+      <stop offset="0" stop-color="#ff8a3d" stop-opacity=".28"/>
+      <stop offset=".6" stop-color="#ff8a3d" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#ff8a3d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gaGloss" cx=".35" cy=".25" r=".8">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".5"/>
+      <stop offset=".45" stop-color="#ffffff" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="gaShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3.5" stdDeviation="3" flood-color="#000" flood-opacity=".38"/>
+    </filter>
+    <filter id="gaGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>`;
+  const S = (inner) => `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" fill="none" stroke-linecap="round" stroke-linejoin="round">${DEFS}
+    <circle cx="60" cy="60" r="57" fill="url(#gaHalo)"/>
+    <g filter="url(#gaShadow)"><g filter="url(#gaGlow)">${inner}</g></g>
+    <ellipse cx="46" cy="34" rx="34" ry="22" fill="url(#gaGloss)" opacity=".55" pointer-events="none"/>
+  </svg>`;
+  const A = 'url(#gaNeon)';   // hot neon accent
+  const G = 'url(#gaMetal)';  // brushed metal
+  const F = 'rgba(140,155,180,.16)'; // holo fill
 
   const art = {
     piston: S(`

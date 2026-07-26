@@ -1256,7 +1256,7 @@
 
   function trimTo(t, n) { return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t; }
   function findStat(text) {
-    const m = text.match(/(\d[\d.,]*)\s?(EUR|euros?|km|%|bares|minutos|segundos|horas|anos)/i);
+    const m = text.match(/(\d[\d.,]*)\s?(EUR|euros?|km|%|bares|minutos|segundos|horas|años)/i);
     return m ? `${m[1]} ${m[2]}` : null;
   }
 
