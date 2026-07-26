@@ -594,6 +594,137 @@ body.modal-open { overflow: hidden; }
 /* Notes */
 .notes-area { min-height: 160px; font-size: 14.5px; }
 
+/* Infographic story overlay */
+.ig-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  background: radial-gradient(120% 120% at 20% 0%, #2a1a10 0%, #0b0d12 55%, #05060a 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+.ig-overlay[hidden] { display: none; }
+.ig-bar {
+  position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 12px; right: 12px;
+  display: flex; gap: 4px; z-index: 3;
+}
+.ig-seg {
+  flex: 1; height: 3px; border-radius: 999px;
+  background: rgba(255,255,255,.25); overflow: hidden; position: relative;
+}
+.ig-seg.done { background: #f3a366; }
+.ig-seg.cur .ig-fill {
+  position: absolute; inset: 0; transform-origin: left;
+  background: #f3a366;
+  animation: igfill 7s linear forwards;
+}
+@keyframes igfill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ig-controls {
+  position: absolute; top: calc(22px + env(safe-area-inset-top)); right: 12px;
+  display: flex; gap: 6px; z-index: 3;
+}
+.ig-ctl {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(0,0,0,.35); color: #fff;
+  font-size: 16px; cursor: pointer;
+}
+.ig-ctl:hover, .ig-ctl.on { background: rgba(243,163,102,.35); border-color: #f3a366; }
+.ig-slide {
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  padding: 24px;
+  text-align: center;
+  color: #f5efe4;
+  z-index: 2;
+  pointer-events: none;
+}
+.ig-inner { animation: igin .5s ease; }
+@keyframes igin { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+.ig-tag {
+  display: inline-block;
+  font: 800 11px/1 var(--font-ui);
+  letter-spacing: .28em; text-transform: uppercase;
+  color: #f3a366;
+  border: 1px solid rgba(243,163,102,.4);
+  padding: 8px 14px; border-radius: 999px;
+  margin-bottom: 22px;
+}
+.ig-title {
+  font: 700 clamp(24px, 5vw, 40px)/1.15 var(--font-body);
+  margin-bottom: 18px;
+  text-wrap: balance;
+}
+.ig-stat {
+  font: 800 clamp(36px, 9vw, 64px)/1 var(--font-ui);
+  color: #f3a366;
+  margin: 10px 0 18px;
+  animation: igpop .6s cubic-bezier(.2, 1.4, .4, 1) .2s backwards;
+}
+@keyframes igpop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: scale(1); } }
+.ig-text {
+  font: 400 clamp(16px, 3vw, 20px)/1.6 var(--font-body);
+  color: #d9d2c2;
+  max-width: 46ch; margin: 0 auto;
+}
+.ig-sub { margin-top: 18px; font: 500 13px var(--font-ui); color: #8a8676; }
+.kind-reflection .ig-tag { color: #7dd3fc; border-color: rgba(125,211,252,.4); }
+.kind-reflection .ig-text { font-style: italic; }
+.kind-end .ig-title { color: #f3a366; }
+.ig-zone {
+  position: absolute; top: 0; bottom: 0; width: 34%;
+  background: transparent; border: 0; cursor: pointer; z-index: 1;
+}
+.ig-zone.left { left: 0; }
+.ig-zone.right { right: 0; width: 66%; }
+
+/* Videos modal */
+.videos-body { width: min(600px, 100%); }
+.videos-list { max-height: 55vh; overflow-y: auto; }
+.video-sec {
+  font: 700 11px var(--font-ui);
+  letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted);
+  margin: 14px 0 8px;
+}
+.video-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: var(--bg-soft);
+}
+.video-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font: 600 13px var(--font-ui);
+  margin-bottom: 8px;
+}
+.v-del { border: 0; background: transparent; cursor: pointer; font-size: 14px; }
+.video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9/14;
+  max-height: 420px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+}
+.video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-link {
+  display: inline-block; margin-top: 8px;
+  font: 600 12px var(--font-ui);
+  color: var(--accent); text-decoration: none;
+}
+.video-add { display: flex; gap: 8px; margin-top: 12px; }
+.video-add input {
+  flex: 1; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft); color: var(--text);
+  font-size: 13px;
+}
+.ch-act.featured {
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+  color: #fff; border-color: transparent;
+}
+.ch-act.featured:hover { filter: brightness(1.08); }
+
 /* Toast */
 .toast {
   position: fixed;
@@ -840,6 +971,34 @@ body[data-font="xl"] { --font-scale: 1.25; }
         </button>
       </div>
       <p class="ai-foot">Se abrirá en una pestaña nueva. <button id="btnAICopy" class="btn ghost small">Copiar pregunta</button></p>
+    </div>
+  </div>
+
+  <!-- Infographic story overlay -->
+  <div id="igOverlay" class="ig-overlay" hidden role="dialog" aria-modal="true" aria-label="Infografía de la lección">
+    <div id="igBar" class="ig-bar" aria-hidden="true"></div>
+    <div class="ig-controls">
+      <button id="igVoice" class="ig-ctl" title="Narración por voz">🔇</button>
+      <button id="igClose" class="ig-ctl" title="Cerrar (Esc)">✕</button>
+    </div>
+    <div id="igSlide" class="ig-slide"></div>
+    <button id="igPrevZone" class="ig-zone left" aria-label="Anterior"></button>
+    <button id="igNextZone" class="ig-zone right" aria-label="Siguiente"></button>
+  </div>
+
+  <!-- Videos modal -->
+  <div id="videosModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="videosTitle">
+    <div class="modal-body videos-body">
+      <header class="modal-head">
+        <h2 id="videosTitle">📹 Vídeos de la lección</h2>
+        <button class="icon-btn modal-close" data-close="videosModal" aria-label="Cerrar">×</button>
+      </header>
+      <p class="modal-sub">Reels e infografías en vídeo que acompañan al libro. Los vídeos necesitan internet; la infografía animada 🎬 funciona sin conexión.</p>
+      <div id="videosList" class="videos-list"></div>
+      <div class="video-add">
+        <input id="videoAddInput" type="url" placeholder="Pega un enlace de Instagram o YouTube…" />
+        <button id="btnVideoAdd" class="btn small">＋ Añadir a este capítulo</button>
+      </div>
     </div>
   </div>
 
@@ -3395,6 +3554,8 @@ window.__CHAPTERS__ = [{"title": "Indice de Contenidos", "intro": [], "sections"
     parts.push(`<button class="ch-act" data-act="listen" title="Escuchar capítulo (S)">🔊 <span>Escuchar</span></button>`);
     parts.push(`<button class="ch-act" data-act="askai" title="Preguntar a la IA sobre este capítulo (A)">💬 <span>IA capítulo</span></button>`);
     parts.push(`<button class="ch-act ${bm ? 'active' : ''}" data-bookmark title="Marcar capítulo">${bm ? '★' : '☆'} <span>${bm ? 'Marcado' : 'Marcar'}</span></button>`);
+    parts.push(`<button class="ch-act featured" data-act="infographic" title="Ver infografía animada de esta lección (I)">🎬 <span>Infografía</span></button>`);
+    parts.push(`<button class="ch-act" data-act="videos" title="Vídeos de esta lección (V)">📹 <span>Vídeos</span></button>`);
     parts.push(`<button class="ch-act" data-act="notes" title="Mis notas de este capítulo (N)">📝 <span>Notas</span></button>`);
     parts.push(`<button class="ch-act" data-act="copylink" title="Copiar enlace al capítulo">🔗 <span>Enlace</span></button>`);
     parts.push(`<button class="ch-act" data-act="print" title="Imprimir capítulo">🖨 <span>Imprimir</span></button>`);
@@ -3525,6 +3686,8 @@ window.__CHAPTERS__ = [{"title": "Indice de Contenidos", "intro": [], "sections"
       const kind = act.dataset.act;
       if (kind === 'listen') toggleSpeak(act);
       else if (kind === 'askai') askAIAboutChapter();
+      else if (kind === 'infographic') openInfographic();
+      else if (kind === 'videos') openVideos();
       else if (kind === 'notes') openNotes();
       else if (kind === 'print') window.print();
       else if (kind === 'copylink') {
@@ -3815,6 +3978,8 @@ window.__CHAPTERS__ = [{"title": "Indice de Contenidos", "intro": [], "sections"
   els.btnNext.addEventListener('click', () => renderChapter(state.current + 1));
   document.addEventListener('keydown', e => {
     if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    const igOv = document.getElementById('igOverlay');
+    if (igOv && !igOv.hidden) return;
     if (e.metaKey || e.ctrlKey) {
       if (e.key.toLowerCase() === 'k') { e.preventDefault(); els.btnSearch.click(); }
       return;
@@ -3827,6 +3992,8 @@ window.__CHAPTERS__ = [{"title": "Indice de Contenidos", "intro": [], "sections"
     else if (k === 's') { const btn = els.content.querySelector('[data-act="listen"]'); toggleSpeak(btn); }
     else if (k === 'a') askAIAboutChapter();
     else if (k === 'n') openNotes();
+    else if (k === 'i') openInfographic();
+    else if (k === 'v') openVideos();
   });
 
   /* ---------- TOC toggle (mobile) ---------- */
@@ -3867,7 +4034,7 @@ window.__CHAPTERS__ = [{"title": "Indice de Contenidos", "intro": [], "sections"
   if (state.settings.focus) document.body.classList.add('focus-mode');
 
   /* ---------- Modal helpers ---------- */
-  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal'];
+  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal', 'videosModal'];
   function openModal(id) {
     MODAL_IDS.forEach(other => { if (other !== id) closeModal(other); });
     const m = document.getElementById(id);
@@ -4303,6 +4470,205 @@ window.__CHAPTERS__ = [{"title": "Indice de Contenidos", "intro": [], "sections"
         else if (action === 'ai') { const b = document.getElementById('btnAI'); if (b) b.click(); }
       }, 80);
     });
+  });
+
+  /* ---------- Video infographics (story-style, offline) ---------- */
+  const ig = { slides: [], idx: 0, timer: null, narrate: false, playing: false };
+  const igOverlay = document.getElementById('igOverlay');
+  const igSlideEl = document.getElementById('igSlide');
+  const igBar = document.getElementById('igBar');
+
+  function buildSlides(idx) {
+    const meta = state.flat[idx];
+    const raw = state.chapters[idx];
+    const slides = [];
+    slides.push({
+      kind: 'title',
+      tag: meta.chTag || 'La IA y Mi Motor',
+      title: meta.title,
+      sub: `≈ ${readingMinutes(raw)} min · ${(raw.sections || []).length || 1} lecciones`,
+    });
+    const firstIntro = (raw.intro || []).find(p => !p.list && p.text.length > 40);
+    if (firstIntro) {
+      slides.push({ kind: 'text', tag: 'La historia', title: '', text: trimTo(firstIntro.text, 220) });
+    }
+    (raw.sections || []).slice(0, 8).forEach((s, i) => {
+      if (!s.title) return;
+      const paras = [...(s.paragraphs || []), ...((s.subsections || []).flatMap(x => x.paragraphs || []))];
+      const key = paras.find(p => !p.list && p.text.length > 30 && !/^Pregunta de reflexion/i.test(p.text));
+      const stat = findStat(paras.map(p => p.text).join(' '));
+      slides.push({
+        kind: 'section',
+        tag: `Lección ${i + 1}`,
+        title: s.title,
+        text: key ? trimTo(key.text, 190) : '',
+        stat,
+      });
+    });
+    const refl = [...(raw.intro || []), ...(raw.sections || []).flatMap(s => [...(s.paragraphs || []), ...(s.subsections || []).flatMap(x => x.paragraphs || [])])]
+      .find(p => /^Pregunta de reflexion/i.test(p.text));
+    if (refl) {
+      slides.push({ kind: 'reflection', tag: 'Para reflexionar', title: '', text: trimTo(refl.text.replace(/^Pregunta de reflexion\s*/i, ''), 240) });
+    }
+    slides.push({ kind: 'end', tag: meta.chTag || '', title: '¡Lección completada!', text: 'Sigue leyendo el capítulo completo o pasa al siguiente.' });
+    return slides;
+  }
+
+  function trimTo(t, n) { return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t; }
+  function findStat(text) {
+    const m = text.match(/(\d[\d.,]*)\s?(EUR|euros?|km|%|bares|minutos|segundos|horas|anos)/i);
+    return m ? `${m[1]} ${m[2]}` : null;
+  }
+
+  function openInfographic() {
+    loadChapter(state.current).then(() => {
+      ig.slides = buildSlides(state.current);
+      ig.idx = 0;
+      ig.playing = true;
+      igOverlay.hidden = false;
+      document.body.classList.add('modal-open');
+      renderIgBar();
+      showSlide(0);
+    });
+  }
+  function closeInfographic() {
+    ig.playing = false;
+    clearTimeout(ig.timer);
+    if (ig.narrate) speechSynthesis.cancel();
+    igOverlay.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  function renderIgBar() {
+    igBar.innerHTML = ig.slides.map((_, i) =>
+      `<span class="ig-seg${i < ig.idx ? ' done' : ''}${i === ig.idx ? ' cur' : ''}"><span class="ig-fill"></span></span>`).join('');
+  }
+
+  function showSlide(i) {
+    if (i < 0) i = 0;
+    if (i >= ig.slides.length) { closeInfographic(); return; }
+    ig.idx = i;
+    clearTimeout(ig.timer);
+    const s = ig.slides[i];
+    const parts = [`<div class="ig-inner kind-${s.kind}">`];
+    if (s.tag) parts.push(`<div class="ig-tag">${escapeHtml(s.tag)}</div>`);
+    if (s.title) parts.push(`<div class="ig-title">${escapeHtml(s.title)}</div>`);
+    if (s.stat) parts.push(`<div class="ig-stat">${escapeHtml(s.stat)}</div>`);
+    if (s.text) parts.push(`<div class="ig-text">${escapeHtml(s.text)}</div>`);
+    if (s.sub) parts.push(`<div class="ig-sub">${escapeHtml(s.sub)}</div>`);
+    parts.push('</div>');
+    igSlideEl.innerHTML = parts.join('');
+    renderIgBar();
+
+    const dur = s.kind === 'title' || s.kind === 'end' ? 4500 : 7000;
+    if (ig.narrate && 'speechSynthesis' in window) {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance([s.tag, s.title, s.stat, s.text].filter(Boolean).join('. '));
+      u.lang = 'es-ES';
+      const v = pickVoice(); if (v) u.voice = v;
+      u.rate = audio.rate;
+      u.onend = () => { if (ig.playing && ig.idx === i) ig.timer = setTimeout(() => showSlide(i + 1), 600); };
+      u.onerror = () => { if (ig.playing && ig.idx === i) ig.timer = setTimeout(() => showSlide(i + 1), dur); };
+      speechSynthesis.speak(u);
+    } else {
+      ig.timer = setTimeout(() => { if (ig.playing) showSlide(i + 1); }, dur);
+    }
+  }
+
+  if (igOverlay) {
+    document.getElementById('igClose').addEventListener('click', closeInfographic);
+    document.getElementById('igPrevZone').addEventListener('click', () => showSlide(ig.idx - 1));
+    document.getElementById('igNextZone').addEventListener('click', () => showSlide(ig.idx + 1));
+    const igVoice = document.getElementById('igVoice');
+    igVoice.addEventListener('click', () => {
+      ig.narrate = !ig.narrate;
+      igVoice.classList.toggle('on', ig.narrate);
+      igVoice.textContent = ig.narrate ? '🔊' : '🔇';
+      if (!ig.narrate) speechSynthesis.cancel();
+      showSlide(ig.idx);
+      toast(ig.narrate ? 'Narración activada' : 'Narración desactivada');
+    });
+    document.addEventListener('keydown', e => {
+      if (igOverlay.hidden) return;
+      if (e.key === 'Escape') closeInfographic();
+      if (e.key === 'ArrowRight') showSlide(ig.idx + 1);
+      if (e.key === 'ArrowLeft') showSlide(ig.idx - 1);
+    });
+  }
+
+  /* ---------- Video library (Instagram reels & more) ---------- */
+  const DEFAULT_VIDEOS = [
+    { url: 'https://www.instagram.com/reel/DWRQLTGjg3N/', label: 'Reel del autor · infografía 1' },
+    { url: 'https://www.instagram.com/reel/DYB_wkaypj6/', label: 'Reel del autor · infografía 2' },
+  ];
+  function chapterVideos(idx) {
+    const user = (state.settings.videos || {})[idx] || [];
+    return { general: DEFAULT_VIDEOS, own: user };
+  }
+  function embedUrlFor(url) {
+    // Instagram reel/post → /embed; YouTube → embed; otherwise null (link only)
+    let m = url.match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/);
+    if (m) return `https://www.instagram.com/${m[1]}/${m[2]}/embed`;
+    m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (m) return `https://www.youtube.com/embed/${m[1]}`;
+    return null;
+  }
+
+  const videosModalId = 'videosModal';
+  const videosList = document.getElementById('videosList');
+  const videoAddInput = document.getElementById('videoAddInput');
+
+  function openVideos() {
+    renderVideos();
+    openModal(videosModalId);
+  }
+  function renderVideos() {
+    const { general, own } = chapterVideos(state.current);
+    const ch = state.flat[state.current];
+    const parts = [];
+    const renderItem = (v, removable, i) => {
+      const embed = embedUrlFor(v.url);
+      parts.push('<div class="video-item">');
+      parts.push(`<div class="video-head"><span>${escapeHtml(v.label || v.url)}</span>${removable ? `<button class="v-del" data-vdel="${i}" title="Quitar">🗑</button>` : ''}</div>`);
+      if (embed) {
+        parts.push(`<div class="video-frame"><iframe src="${embed}" loading="lazy" allowfullscreen frameborder="0" scrolling="no" allow="encrypted-media"></iframe></div>`);
+      }
+      parts.push(`<a class="video-link" href="${escapeHtml(v.url)}" target="_blank" rel="noopener">Abrir en la app original ↗</a>`);
+      parts.push('</div>');
+    };
+    if (own.length) {
+      parts.push(`<div class="video-sec">Vídeos de este capítulo (${escapeHtml(ch.chTag || ch.title)})</div>`);
+      own.forEach((v, i) => renderItem(v, true, i));
+    }
+    parts.push('<div class="video-sec">Vídeos del libro</div>');
+    general.forEach(v => renderItem(v, false));
+    videosList.innerHTML = parts.join('');
+  }
+  if (videosList) {
+    videosList.addEventListener('click', e => {
+      const del = e.target.closest('[data-vdel]');
+      if (!del) return;
+      const i = parseInt(del.dataset.vdel, 10);
+      const videos = state.settings.videos || {};
+      (videos[state.current] || []).splice(i, 1);
+      if (videos[state.current] && !videos[state.current].length) delete videos[state.current];
+      state.settings.videos = videos;
+      saveSettings();
+      renderVideos();
+      toast('Vídeo quitado');
+    });
+  }
+  const btnVideoAdd = document.getElementById('btnVideoAdd');
+  if (btnVideoAdd) btnVideoAdd.addEventListener('click', () => {
+    const url = (videoAddInput.value || '').trim();
+    if (!/^https?:\/\//i.test(url)) { toast('Pega un enlace válido (https://…)'); return; }
+    const videos = state.settings.videos || {};
+    (videos[state.current] = videos[state.current] || []).push({ url, label: url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60) });
+    state.settings.videos = videos;
+    saveSettings();
+    videoAddInput.value = '';
+    renderVideos();
+    toast('Vídeo añadido a este capítulo');
   });
 
   /* ---------- Boot ---------- */

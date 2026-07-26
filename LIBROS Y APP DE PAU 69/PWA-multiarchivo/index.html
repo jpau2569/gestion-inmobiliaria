@@ -209,6 +209,34 @@
     </div>
   </div>
 
+  <!-- Infographic story overlay -->
+  <div id="igOverlay" class="ig-overlay" hidden role="dialog" aria-modal="true" aria-label="Infografía de la lección">
+    <div id="igBar" class="ig-bar" aria-hidden="true"></div>
+    <div class="ig-controls">
+      <button id="igVoice" class="ig-ctl" title="Narración por voz">🔇</button>
+      <button id="igClose" class="ig-ctl" title="Cerrar (Esc)">✕</button>
+    </div>
+    <div id="igSlide" class="ig-slide"></div>
+    <button id="igPrevZone" class="ig-zone left" aria-label="Anterior"></button>
+    <button id="igNextZone" class="ig-zone right" aria-label="Siguiente"></button>
+  </div>
+
+  <!-- Videos modal -->
+  <div id="videosModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="videosTitle">
+    <div class="modal-body videos-body">
+      <header class="modal-head">
+        <h2 id="videosTitle">📹 Vídeos de la lección</h2>
+        <button class="icon-btn modal-close" data-close="videosModal" aria-label="Cerrar">×</button>
+      </header>
+      <p class="modal-sub">Reels e infografías en vídeo que acompañan al libro. Los vídeos necesitan internet; la infografía animada 🎬 funciona sin conexión.</p>
+      <div id="videosList" class="videos-list"></div>
+      <div class="video-add">
+        <input id="videoAddInput" type="url" placeholder="Pega un enlace de Instagram o YouTube…" />
+        <button id="btnVideoAdd" class="btn small">＋ Añadir a este capítulo</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Notes modal -->
   <div id="notesModal" class="modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
     <div class="modal-body">

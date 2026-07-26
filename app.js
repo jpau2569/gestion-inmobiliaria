@@ -228,6 +228,8 @@
     parts.push(`<button class="ch-act" data-act="listen" title="Escuchar capítulo (S)">🔊 <span>Escuchar</span></button>`);
     parts.push(`<button class="ch-act" data-act="askai" title="Preguntar a la IA sobre este capítulo (A)">💬 <span>IA capítulo</span></button>`);
     parts.push(`<button class="ch-act ${bm ? 'active' : ''}" data-bookmark title="Marcar capítulo">${bm ? '★' : '☆'} <span>${bm ? 'Marcado' : 'Marcar'}</span></button>`);
+    parts.push(`<button class="ch-act featured" data-act="infographic" title="Ver infografía animada de esta lección (I)">🎬 <span>Infografía</span></button>`);
+    parts.push(`<button class="ch-act" data-act="videos" title="Vídeos de esta lección (V)">📹 <span>Vídeos</span></button>`);
     parts.push(`<button class="ch-act" data-act="notes" title="Mis notas de este capítulo (N)">📝 <span>Notas</span></button>`);
     parts.push(`<button class="ch-act" data-act="copylink" title="Copiar enlace al capítulo">🔗 <span>Enlace</span></button>`);
     parts.push(`<button class="ch-act" data-act="print" title="Imprimir capítulo">🖨 <span>Imprimir</span></button>`);
@@ -358,6 +360,8 @@
       const kind = act.dataset.act;
       if (kind === 'listen') toggleSpeak(act);
       else if (kind === 'askai') askAIAboutChapter();
+      else if (kind === 'infographic') openInfographic();
+      else if (kind === 'videos') openVideos();
       else if (kind === 'notes') openNotes();
       else if (kind === 'print') window.print();
       else if (kind === 'copylink') {
@@ -648,6 +652,8 @@
   els.btnNext.addEventListener('click', () => renderChapter(state.current + 1));
   document.addEventListener('keydown', e => {
     if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    const igOv = document.getElementById('igOverlay');
+    if (igOv && !igOv.hidden) return;
     if (e.metaKey || e.ctrlKey) {
       if (e.key.toLowerCase() === 'k') { e.preventDefault(); els.btnSearch.click(); }
       return;
@@ -660,6 +666,8 @@
     else if (k === 's') { const btn = els.content.querySelector('[data-act="listen"]'); toggleSpeak(btn); }
     else if (k === 'a') askAIAboutChapter();
     else if (k === 'n') openNotes();
+    else if (k === 'i') openInfographic();
+    else if (k === 'v') openVideos();
   });
 
   /* ---------- TOC toggle (mobile) ---------- */
@@ -700,7 +708,7 @@
   if (state.settings.focus) document.body.classList.add('focus-mode');
 
   /* ---------- Modal helpers ---------- */
-  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal'];
+  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal', 'videosModal'];
   function openModal(id) {
     MODAL_IDS.forEach(other => { if (other !== id) closeModal(other); });
     const m = document.getElementById(id);
@@ -1136,6 +1144,205 @@
         else if (action === 'ai') { const b = document.getElementById('btnAI'); if (b) b.click(); }
       }, 80);
     });
+  });
+
+  /* ---------- Video infographics (story-style, offline) ---------- */
+  const ig = { slides: [], idx: 0, timer: null, narrate: false, playing: false };
+  const igOverlay = document.getElementById('igOverlay');
+  const igSlideEl = document.getElementById('igSlide');
+  const igBar = document.getElementById('igBar');
+
+  function buildSlides(idx) {
+    const meta = state.flat[idx];
+    const raw = state.chapters[idx];
+    const slides = [];
+    slides.push({
+      kind: 'title',
+      tag: meta.chTag || 'La IA y Mi Motor',
+      title: meta.title,
+      sub: `≈ ${readingMinutes(raw)} min · ${(raw.sections || []).length || 1} lecciones`,
+    });
+    const firstIntro = (raw.intro || []).find(p => !p.list && p.text.length > 40);
+    if (firstIntro) {
+      slides.push({ kind: 'text', tag: 'La historia', title: '', text: trimTo(firstIntro.text, 220) });
+    }
+    (raw.sections || []).slice(0, 8).forEach((s, i) => {
+      if (!s.title) return;
+      const paras = [...(s.paragraphs || []), ...((s.subsections || []).flatMap(x => x.paragraphs || []))];
+      const key = paras.find(p => !p.list && p.text.length > 30 && !/^Pregunta de reflexion/i.test(p.text));
+      const stat = findStat(paras.map(p => p.text).join(' '));
+      slides.push({
+        kind: 'section',
+        tag: `Lección ${i + 1}`,
+        title: s.title,
+        text: key ? trimTo(key.text, 190) : '',
+        stat,
+      });
+    });
+    const refl = [...(raw.intro || []), ...(raw.sections || []).flatMap(s => [...(s.paragraphs || []), ...(s.subsections || []).flatMap(x => x.paragraphs || [])])]
+      .find(p => /^Pregunta de reflexion/i.test(p.text));
+    if (refl) {
+      slides.push({ kind: 'reflection', tag: 'Para reflexionar', title: '', text: trimTo(refl.text.replace(/^Pregunta de reflexion\s*/i, ''), 240) });
+    }
+    slides.push({ kind: 'end', tag: meta.chTag || '', title: '¡Lección completada!', text: 'Sigue leyendo el capítulo completo o pasa al siguiente.' });
+    return slides;
+  }
+
+  function trimTo(t, n) { return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t; }
+  function findStat(text) {
+    const m = text.match(/(\d[\d.,]*)\s?(EUR|euros?|km|%|bares|minutos|segundos|horas|anos)/i);
+    return m ? `${m[1]} ${m[2]}` : null;
+  }
+
+  function openInfographic() {
+    loadChapter(state.current).then(() => {
+      ig.slides = buildSlides(state.current);
+      ig.idx = 0;
+      ig.playing = true;
+      igOverlay.hidden = false;
+      document.body.classList.add('modal-open');
+      renderIgBar();
+      showSlide(0);
+    });
+  }
+  function closeInfographic() {
+    ig.playing = false;
+    clearTimeout(ig.timer);
+    if (ig.narrate) speechSynthesis.cancel();
+    igOverlay.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  function renderIgBar() {
+    igBar.innerHTML = ig.slides.map((_, i) =>
+      `<span class="ig-seg${i < ig.idx ? ' done' : ''}${i === ig.idx ? ' cur' : ''}"><span class="ig-fill"></span></span>`).join('');
+  }
+
+  function showSlide(i) {
+    if (i < 0) i = 0;
+    if (i >= ig.slides.length) { closeInfographic(); return; }
+    ig.idx = i;
+    clearTimeout(ig.timer);
+    const s = ig.slides[i];
+    const parts = [`<div class="ig-inner kind-${s.kind}">`];
+    if (s.tag) parts.push(`<div class="ig-tag">${escapeHtml(s.tag)}</div>`);
+    if (s.title) parts.push(`<div class="ig-title">${escapeHtml(s.title)}</div>`);
+    if (s.stat) parts.push(`<div class="ig-stat">${escapeHtml(s.stat)}</div>`);
+    if (s.text) parts.push(`<div class="ig-text">${escapeHtml(s.text)}</div>`);
+    if (s.sub) parts.push(`<div class="ig-sub">${escapeHtml(s.sub)}</div>`);
+    parts.push('</div>');
+    igSlideEl.innerHTML = parts.join('');
+    renderIgBar();
+
+    const dur = s.kind === 'title' || s.kind === 'end' ? 4500 : 7000;
+    if (ig.narrate && 'speechSynthesis' in window) {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance([s.tag, s.title, s.stat, s.text].filter(Boolean).join('. '));
+      u.lang = 'es-ES';
+      const v = pickVoice(); if (v) u.voice = v;
+      u.rate = audio.rate;
+      u.onend = () => { if (ig.playing && ig.idx === i) ig.timer = setTimeout(() => showSlide(i + 1), 600); };
+      u.onerror = () => { if (ig.playing && ig.idx === i) ig.timer = setTimeout(() => showSlide(i + 1), dur); };
+      speechSynthesis.speak(u);
+    } else {
+      ig.timer = setTimeout(() => { if (ig.playing) showSlide(i + 1); }, dur);
+    }
+  }
+
+  if (igOverlay) {
+    document.getElementById('igClose').addEventListener('click', closeInfographic);
+    document.getElementById('igPrevZone').addEventListener('click', () => showSlide(ig.idx - 1));
+    document.getElementById('igNextZone').addEventListener('click', () => showSlide(ig.idx + 1));
+    const igVoice = document.getElementById('igVoice');
+    igVoice.addEventListener('click', () => {
+      ig.narrate = !ig.narrate;
+      igVoice.classList.toggle('on', ig.narrate);
+      igVoice.textContent = ig.narrate ? '🔊' : '🔇';
+      if (!ig.narrate) speechSynthesis.cancel();
+      showSlide(ig.idx);
+      toast(ig.narrate ? 'Narración activada' : 'Narración desactivada');
+    });
+    document.addEventListener('keydown', e => {
+      if (igOverlay.hidden) return;
+      if (e.key === 'Escape') closeInfographic();
+      if (e.key === 'ArrowRight') showSlide(ig.idx + 1);
+      if (e.key === 'ArrowLeft') showSlide(ig.idx - 1);
+    });
+  }
+
+  /* ---------- Video library (Instagram reels & more) ---------- */
+  const DEFAULT_VIDEOS = [
+    { url: 'https://www.instagram.com/reel/DWRQLTGjg3N/', label: 'Reel del autor · infografía 1' },
+    { url: 'https://www.instagram.com/reel/DYB_wkaypj6/', label: 'Reel del autor · infografía 2' },
+  ];
+  function chapterVideos(idx) {
+    const user = (state.settings.videos || {})[idx] || [];
+    return { general: DEFAULT_VIDEOS, own: user };
+  }
+  function embedUrlFor(url) {
+    // Instagram reel/post → /embed; YouTube → embed; otherwise null (link only)
+    let m = url.match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/);
+    if (m) return `https://www.instagram.com/${m[1]}/${m[2]}/embed`;
+    m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+    if (m) return `https://www.youtube.com/embed/${m[1]}`;
+    return null;
+  }
+
+  const videosModalId = 'videosModal';
+  const videosList = document.getElementById('videosList');
+  const videoAddInput = document.getElementById('videoAddInput');
+
+  function openVideos() {
+    renderVideos();
+    openModal(videosModalId);
+  }
+  function renderVideos() {
+    const { general, own } = chapterVideos(state.current);
+    const ch = state.flat[state.current];
+    const parts = [];
+    const renderItem = (v, removable, i) => {
+      const embed = embedUrlFor(v.url);
+      parts.push('<div class="video-item">');
+      parts.push(`<div class="video-head"><span>${escapeHtml(v.label || v.url)}</span>${removable ? `<button class="v-del" data-vdel="${i}" title="Quitar">🗑</button>` : ''}</div>`);
+      if (embed) {
+        parts.push(`<div class="video-frame"><iframe src="${embed}" loading="lazy" allowfullscreen frameborder="0" scrolling="no" allow="encrypted-media"></iframe></div>`);
+      }
+      parts.push(`<a class="video-link" href="${escapeHtml(v.url)}" target="_blank" rel="noopener">Abrir en la app original ↗</a>`);
+      parts.push('</div>');
+    };
+    if (own.length) {
+      parts.push(`<div class="video-sec">Vídeos de este capítulo (${escapeHtml(ch.chTag || ch.title)})</div>`);
+      own.forEach((v, i) => renderItem(v, true, i));
+    }
+    parts.push('<div class="video-sec">Vídeos del libro</div>');
+    general.forEach(v => renderItem(v, false));
+    videosList.innerHTML = parts.join('');
+  }
+  if (videosList) {
+    videosList.addEventListener('click', e => {
+      const del = e.target.closest('[data-vdel]');
+      if (!del) return;
+      const i = parseInt(del.dataset.vdel, 10);
+      const videos = state.settings.videos || {};
+      (videos[state.current] || []).splice(i, 1);
+      if (videos[state.current] && !videos[state.current].length) delete videos[state.current];
+      state.settings.videos = videos;
+      saveSettings();
+      renderVideos();
+      toast('Vídeo quitado');
+    });
+  }
+  const btnVideoAdd = document.getElementById('btnVideoAdd');
+  if (btnVideoAdd) btnVideoAdd.addEventListener('click', () => {
+    const url = (videoAddInput.value || '').trim();
+    if (!/^https?:\/\//i.test(url)) { toast('Pega un enlace válido (https://…)'); return; }
+    const videos = state.settings.videos || {};
+    (videos[state.current] = videos[state.current] || []).push({ url, label: url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60) });
+    state.settings.videos = videos;
+    saveSettings();
+    videoAddInput.value = '';
+    renderVideos();
+    toast('Vídeo añadido a este capítulo');
   });
 
   /* ---------- Boot ---------- */
