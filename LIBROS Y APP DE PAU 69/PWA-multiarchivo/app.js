@@ -229,7 +229,6 @@
     parts.push(`<button class="ch-act" data-act="askai" title="Preguntar a la IA sobre este capítulo (A)">💬 <span>IA capítulo</span></button>`);
     parts.push(`<button class="ch-act ${bm ? 'active' : ''}" data-bookmark title="Marcar capítulo">${bm ? '★' : '☆'} <span>${bm ? 'Marcado' : 'Marcar'}</span></button>`);
     parts.push(`<button class="ch-act featured" data-act="infographic" title="Ver infografía animada de esta lección (I)">🎬 <span>Infografía</span></button>`);
-    parts.push(`<button class="ch-act" data-act="videos" title="Vídeos de esta lección (V)">📹 <span>Vídeos</span></button>`);
     parts.push(`<button class="ch-act" data-act="notes" title="Mis notas de este capítulo (N)">📝 <span>Notas</span></button>`);
     parts.push(`<button class="ch-act" data-act="copylink" title="Copiar enlace al capítulo">🔗 <span>Enlace</span></button>`);
     parts.push(`<button class="ch-act" data-act="print" title="Imprimir capítulo">🖨 <span>Imprimir</span></button>`);
@@ -239,6 +238,7 @@
     if (raw.intro && raw.intro.length) parts.push(renderBlocks(raw.intro, { lead: idx === 0 }));
     (raw.sections || []).forEach((s, si) => {
       if (s.title) parts.push(`<h2 id="sec-${si}" class="section-anchor">${escapeHtml(s.title)}</h2>`);
+      if (s.title) parts.push(lessonCard(s, si));
       parts.push(renderBlocks(s.paragraphs || []));
       (s.subsections || []).forEach((sub, subi) => {
         if (sub.title) parts.push(`<h3 id="sec-${si}-${subi}" class="section-anchor">${escapeHtml(sub.title)}</h3>`);
@@ -263,6 +263,29 @@
       });
     }
     document.title = `${ch.chTag ? ch.chTag + ' · ' : ''}${ch.title} — La IA y Mi Motor`;
+  }
+
+  /* Inline visual infographic for a lesson, embedded in the reading flow */
+  function lessonCard(s, si) {
+    const allParas = [...(s.paragraphs || []), ...((s.subsections || []).flatMap(x => x.paragraphs || []))];
+    if (!allParas.length && !(s.subsections || []).length) return '';
+    const stat = findStat(allParas.map(p => p.text).join(' '));
+    const bullets = allParas.filter(p => p.list).slice(0, 3).map(p => trimTo(p.text, 90));
+    const key = !bullets.length ? allParas.find(p => !p.list && p.text.length > 40 && !/^Pregunta de reflexion/i.test(p.text)) : null;
+    const subCount = (s.subsections || []).filter(x => x.title).length;
+    const out = [`<aside class="lesson-card" aria-label="Infografía de la lección">`];
+    out.push(`<div class="lc-head"><span class="lc-num">${si + 1}</span><span class="lc-label">INFOGRAFÍA · LECCIÓN ${si + 1}</span>`);
+    out.push(`<button class="lc-play" data-lc-play="${si}" title="Ver esta lección como infografía animada">▶ Ver animada</button></div>`);
+    out.push('<div class="lc-body">');
+    if (stat) out.push(`<div class="lc-stat">${escapeHtml(stat)}</div>`);
+    if (bullets.length) {
+      out.push('<ul class="lc-points">' + bullets.map(b => `<li>${escapeHtml(b)}</li>`).join('') + '</ul>');
+    } else if (key) {
+      out.push(`<p class="lc-key">${escapeHtml(trimTo(key.text, 160))}</p>`);
+    }
+    if (subCount >= 2) out.push(`<div class="lc-meta">${subCount} apartados en esta lección</div>`);
+    out.push('</div></aside>');
+    return out.join('');
   }
 
   function renderBlocks(blocks, opts = {}) {
@@ -340,6 +363,9 @@
   }
 
   els.content.addEventListener('click', async e => {
+    // Inline lesson infographic play
+    const lcp = e.target.closest('[data-lc-play]');
+    if (lcp) { openInfographic(state.current, parseInt(lcp.dataset.lcPlay, 10)); return; }
     // Prompt card actions
     const pbtn = e.target.closest('[data-prompt-act]');
     if (pbtn) {
@@ -361,7 +387,6 @@
       if (kind === 'listen') toggleSpeak(act);
       else if (kind === 'askai') askAIAboutChapter();
       else if (kind === 'infographic') openInfographic();
-      else if (kind === 'videos') openVideos();
       else if (kind === 'notes') openNotes();
       else if (kind === 'print') window.print();
       else if (kind === 'copylink') {
@@ -667,7 +692,6 @@
     else if (k === 'a') askAIAboutChapter();
     else if (k === 'n') openNotes();
     else if (k === 'i') openInfographic();
-    else if (k === 'v') openVideos();
   });
 
   /* ---------- TOC toggle (mobile) ---------- */
@@ -708,7 +732,7 @@
   if (state.settings.focus) document.body.classList.add('focus-mode');
 
   /* ---------- Modal helpers ---------- */
-  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal', 'videosModal', 'igIndexModal'];
+  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal', 'igIndexModal'];
   function openModal(id) {
     MODAL_IDS.forEach(other => { if (other !== id) closeModal(other); });
     const m = document.getElementById(id);
@@ -1302,88 +1326,6 @@
       if (e.key === 'ArrowLeft') showSlide(ig.idx - 1);
     });
   }
-
-  /* ---------- Video library (Instagram reels & more) ---------- */
-  const DEFAULT_VIDEOS = [
-    { url: 'https://www.instagram.com/reel/DWRQLTGjg3N/', label: 'Reel del autor · 1' },
-    { url: 'https://www.instagram.com/reel/DYB_wkaypj6/', label: 'Reel del autor · 2' },
-    { url: 'https://www.instagram.com/reel/DYSWLtgxJf5/', label: 'Reel del autor · 3' },
-    { url: 'https://www.instagram.com/reel/DXY2E2WCSS1/', label: 'Reel del autor · 4' },
-    { url: 'https://www.instagram.com/reel/DWFvAQ8jDpD/', label: 'Reel del autor · 5' },
-    { url: 'https://www.instagram.com/reel/DXwSeFLMydR/', label: 'Reel del autor · 6' },
-    { url: 'https://www.instagram.com/reel/DWhFN0qDqpW/', label: 'Reel del autor · 7' },
-    { url: 'https://www.instagram.com/reel/DX2VO4LlBdM/', label: 'Reel del autor · 8' },
-    { url: 'https://www.instagram.com/reel/DX4h7zJs-Ei/', label: 'Reel del autor · 9' },
-  ];
-  function chapterVideos(idx) {
-    const user = (state.settings.videos || {})[idx] || [];
-    return { general: DEFAULT_VIDEOS, own: user };
-  }
-  function embedUrlFor(url) {
-    // Instagram reel/post → /embed; YouTube → embed; otherwise null (link only)
-    let m = url.match(/instagram\.com\/(reel|p)\/([A-Za-z0-9_-]+)/);
-    if (m) return `https://www.instagram.com/${m[1]}/${m[2]}/embed`;
-    m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
-    if (m) return `https://www.youtube.com/embed/${m[1]}`;
-    return null;
-  }
-
-  const videosModalId = 'videosModal';
-  const videosList = document.getElementById('videosList');
-  const videoAddInput = document.getElementById('videoAddInput');
-
-  function openVideos() {
-    renderVideos();
-    openModal(videosModalId);
-  }
-  function renderVideos() {
-    const { general, own } = chapterVideos(state.current);
-    const ch = state.flat[state.current];
-    const parts = [];
-    const renderItem = (v, removable, i) => {
-      const embed = embedUrlFor(v.url);
-      parts.push('<div class="video-item">');
-      parts.push(`<div class="video-head"><span>${escapeHtml(v.label || v.url)}</span>${removable ? `<button class="v-del" data-vdel="${i}" title="Quitar">🗑</button>` : ''}</div>`);
-      if (embed) {
-        parts.push(`<div class="video-frame"><iframe src="${embed}" loading="lazy" allowfullscreen frameborder="0" scrolling="no" allow="encrypted-media"></iframe></div>`);
-      }
-      parts.push(`<a class="video-link" href="${escapeHtml(v.url)}" target="_blank" rel="noopener">Abrir en la app original ↗</a>`);
-      parts.push('</div>');
-    };
-    if (own.length) {
-      parts.push(`<div class="video-sec">Vídeos de este capítulo (${escapeHtml(ch.chTag || ch.title)})</div>`);
-      own.forEach((v, i) => renderItem(v, true, i));
-    }
-    parts.push('<div class="video-sec">Vídeos del libro</div>');
-    general.forEach(v => renderItem(v, false));
-    videosList.innerHTML = parts.join('');
-  }
-  if (videosList) {
-    videosList.addEventListener('click', e => {
-      const del = e.target.closest('[data-vdel]');
-      if (!del) return;
-      const i = parseInt(del.dataset.vdel, 10);
-      const videos = state.settings.videos || {};
-      (videos[state.current] || []).splice(i, 1);
-      if (videos[state.current] && !videos[state.current].length) delete videos[state.current];
-      state.settings.videos = videos;
-      saveSettings();
-      renderVideos();
-      toast('Vídeo quitado');
-    });
-  }
-  const btnVideoAdd = document.getElementById('btnVideoAdd');
-  if (btnVideoAdd) btnVideoAdd.addEventListener('click', () => {
-    const url = (videoAddInput.value || '').trim();
-    if (!/^https?:\/\//i.test(url)) { toast('Pega un enlace válido (https://…)'); return; }
-    const videos = state.settings.videos || {};
-    (videos[state.current] = videos[state.current] || []).push({ url, label: url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60) });
-    state.settings.videos = videos;
-    saveSettings();
-    videoAddInput.value = '';
-    renderVideos();
-    toast('Vídeo añadido a este capítulo');
-  });
 
   /* ---------- Infographics gallery (all lessons) ---------- */
   const igIndexList = document.getElementById('igIndexList');
