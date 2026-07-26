@@ -708,7 +708,7 @@
   if (state.settings.focus) document.body.classList.add('focus-mode');
 
   /* ---------- Modal helpers ---------- */
-  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal', 'videosModal'];
+  const MODAL_IDS = ['qrModal', 'searchModal', 'aiModal', 'notesModal', 'videosModal', 'igIndexModal'];
   function openModal(id) {
     MODAL_IDS.forEach(other => { if (other !== id) closeModal(other); });
     const m = document.getElementById(id);
@@ -1152,10 +1152,14 @@
   const igSlideEl = document.getElementById('igSlide');
   const igBar = document.getElementById('igBar');
 
-  function buildSlides(idx) {
+  function buildSlides(idx, secIdx) {
     const meta = state.flat[idx];
     const raw = state.chapters[idx];
     const slides = [];
+    if (typeof secIdx === 'number') {
+      const s = (raw.sections || [])[secIdx];
+      if (s) return buildSectionSlides(meta, s, secIdx);
+    }
     slides.push({
       kind: 'title',
       tag: meta.chTag || 'La IA y Mi Motor',
@@ -1178,6 +1182,8 @@
         text: key ? trimTo(key.text, 190) : '',
         stat,
       });
+      const bl = paras.filter(p => p.list).slice(0, 4).map(p => trimTo(p.text, 64));
+      if (bl.length >= 3) slides.push({ kind: 'bullets', tag: `Lección ${i + 1} · claves`, title: '', bullets: bl });
     });
     const refl = [...(raw.intro || []), ...(raw.sections || []).flatMap(s => [...(s.paragraphs || []), ...(s.subsections || []).flatMap(x => x.paragraphs || [])])]
       .find(p => /^Pregunta de reflexion/i.test(p.text));
@@ -1188,15 +1194,41 @@
     return slides;
   }
 
+  function buildSectionSlides(meta, s, secIdx) {
+    const slides = [];
+    slides.push({
+      kind: 'title',
+      tag: `${meta.chTag || meta.title} · Lección ${secIdx + 1}`,
+      title: s.title || meta.title,
+      sub: 'Infografía de la lección',
+    });
+    const allParas = [...(s.paragraphs || []), ...((s.subsections || []).flatMap(x => (x.title ? [{ text: x.title + '.', list: false }] : []).concat(x.paragraphs || [])))];
+    const keyTexts = allParas.filter(p => !p.list && p.text.length > 40 && !/^Pregunta de reflexion/i.test(p.text)).slice(0, 4);
+    keyTexts.forEach((p, i) => {
+      const stat = findStat(p.text);
+      slides.push({ kind: 'section', tag: `Idea ${i + 1}`, title: '', text: trimTo(p.text, 210), stat });
+    });
+    const bullets = allParas.filter(p => p.list).slice(0, 5).map(p => trimTo(p.text, 70));
+    if (bullets.length >= 2) {
+      slides.push({ kind: 'bullets', tag: 'Puntos clave', title: '', bullets });
+    }
+    const refl = allParas.find(p => /^Pregunta de reflexion/i.test(p.text));
+    if (refl) slides.push({ kind: 'reflection', tag: 'Para reflexionar', title: '', text: trimTo(refl.text.replace(/^Pregunta de reflexion\s*/i, ''), 240) });
+    slides.push({ kind: 'end', tag: meta.chTag || '', title: 'Lección vista', text: 'Vuelve al texto completo o pasa a la siguiente lección.' });
+    return slides;
+  }
+
   function trimTo(t, n) { return t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t; }
   function findStat(text) {
     const m = text.match(/(\d[\d.,]*)\s?(EUR|euros?|km|%|bares|minutos|segundos|horas|anos)/i);
     return m ? `${m[1]} ${m[2]}` : null;
   }
 
-  function openInfographic() {
-    loadChapter(state.current).then(() => {
-      ig.slides = buildSlides(state.current);
+  function openInfographic(chIdx, secIdx) {
+    const idx = typeof chIdx === 'number' ? chIdx : state.current;
+    loadChapter(idx).then(() => {
+      if (idx !== state.current) renderChapter(idx);
+      ig.slides = buildSlides(idx, secIdx);
       ig.idx = 0;
       ig.playing = true;
       igOverlay.hidden = false;
@@ -1228,6 +1260,7 @@
     if (s.tag) parts.push(`<div class="ig-tag">${escapeHtml(s.tag)}</div>`);
     if (s.title) parts.push(`<div class="ig-title">${escapeHtml(s.title)}</div>`);
     if (s.stat) parts.push(`<div class="ig-stat">${escapeHtml(s.stat)}</div>`);
+    if (s.bullets) parts.push('<ul class="ig-bullets">' + s.bullets.map(b => `<li>${escapeHtml(b)}</li>`).join('') + '</ul>');
     if (s.text) parts.push(`<div class="ig-text">${escapeHtml(s.text)}</div>`);
     if (s.sub) parts.push(`<div class="ig-sub">${escapeHtml(s.sub)}</div>`);
     parts.push('</div>');
@@ -1237,7 +1270,7 @@
     const dur = s.kind === 'title' || s.kind === 'end' ? 4500 : 7000;
     if (ig.narrate && 'speechSynthesis' in window) {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance([s.tag, s.title, s.stat, s.text].filter(Boolean).join('. '));
+      const u = new SpeechSynthesisUtterance([s.tag, s.title, s.stat, s.text, ...(s.bullets || [])].filter(Boolean).join('. '));
       u.lang = 'es-ES';
       const v = pickVoice(); if (v) u.voice = v;
       u.rate = audio.rate;
@@ -1272,8 +1305,15 @@
 
   /* ---------- Video library (Instagram reels & more) ---------- */
   const DEFAULT_VIDEOS = [
-    { url: 'https://www.instagram.com/reel/DWRQLTGjg3N/', label: 'Reel del autor · infografía 1' },
-    { url: 'https://www.instagram.com/reel/DYB_wkaypj6/', label: 'Reel del autor · infografía 2' },
+    { url: 'https://www.instagram.com/reel/DWRQLTGjg3N/', label: 'Reel del autor · 1' },
+    { url: 'https://www.instagram.com/reel/DYB_wkaypj6/', label: 'Reel del autor · 2' },
+    { url: 'https://www.instagram.com/reel/DYSWLtgxJf5/', label: 'Reel del autor · 3' },
+    { url: 'https://www.instagram.com/reel/DXY2E2WCSS1/', label: 'Reel del autor · 4' },
+    { url: 'https://www.instagram.com/reel/DWFvAQ8jDpD/', label: 'Reel del autor · 5' },
+    { url: 'https://www.instagram.com/reel/DXwSeFLMydR/', label: 'Reel del autor · 6' },
+    { url: 'https://www.instagram.com/reel/DWhFN0qDqpW/', label: 'Reel del autor · 7' },
+    { url: 'https://www.instagram.com/reel/DX2VO4LlBdM/', label: 'Reel del autor · 8' },
+    { url: 'https://www.instagram.com/reel/DX4h7zJs-Ei/', label: 'Reel del autor · 9' },
   ];
   function chapterVideos(idx) {
     const user = (state.settings.videos || {})[idx] || [];
@@ -1343,6 +1383,46 @@
     videoAddInput.value = '';
     renderVideos();
     toast('Vídeo añadido a este capítulo');
+  });
+
+  /* ---------- Infographics gallery (all lessons) ---------- */
+  const igIndexList = document.getElementById('igIndexList');
+  function openIgIndex() {
+    if (!igIndexList) return;
+    const parts = [];
+    state.flat.forEach((ch, i) => {
+      const secs = state.book.chapters[i].sections || [];
+      parts.push('<div class="gal-ch">');
+      parts.push(`<button class="gal-play ch" data-gal-ch="${i}">🎬 <span>${escapeHtml(ch.chTag ? ch.chTag + ' · ' + ch.title : ch.title)}</span></button>`);
+      if (secs.length) {
+        parts.push('<div class="gal-secs">');
+        secs.forEach((t, si) => {
+          if (!t) return;
+          parts.push(`<button class="gal-play sec" data-gal-ch="${i}" data-gal-sec="${si}">▶ <span>${escapeHtml(t)}</span></button>`);
+        });
+        parts.push('</div>');
+      }
+      parts.push('</div>');
+    });
+    igIndexList.innerHTML = parts.join('');
+    openModal('igIndexModal');
+  }
+  if (igIndexList) {
+    igIndexList.addEventListener('click', e => {
+      const btn = e.target.closest('[data-gal-ch]');
+      if (!btn) return;
+      const chIdx = parseInt(btn.dataset.galCh, 10);
+      const secIdx = btn.dataset.galSec !== undefined ? parseInt(btn.dataset.galSec, 10) : undefined;
+      closeModal('igIndexModal');
+      setTimeout(() => openInfographic(chIdx, secIdx), 100);
+    });
+  }
+  const btnIgIndex = document.getElementById('btnIgIndex');
+  if (btnIgIndex) btnIgIndex.addEventListener('click', openIgIndex);
+  const btnIgIndexToc = document.getElementById('btnIgIndexToc');
+  if (btnIgIndexToc) btnIgIndexToc.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 900px)').matches) els.toc.classList.add('collapsed');
+    openIgIndex();
   });
 
   /* ---------- Boot ---------- */

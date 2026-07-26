@@ -661,6 +661,71 @@ body.modal-open { overflow: hidden; }
 .ig-zone.left { left: 0; }
 .ig-zone.right { right: 0; width: 66%; }
 
+/* Infographics gallery */
+.toc-gallery {
+  display: block; width: calc(100% - 12px);
+  margin: 0 6px 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, #6366f1 18%, var(--surface)), color-mix(in srgb, #ec4899 14%, var(--surface)));
+  color: var(--text);
+  font: 700 13px var(--font-ui);
+  cursor: pointer; text-align: left;
+}
+.toc-gallery:hover { filter: brightness(1.05); }
+.gal-list { max-height: 62vh; overflow-y: auto; }
+.gal-ch { margin-bottom: 10px; }
+.gal-play {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: left;
+  border: 1px solid var(--border);
+  background: var(--bg-soft); color: var(--text);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font: 600 13.5px var(--font-ui);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.gal-play:hover { background: var(--accent-soft); border-color: var(--accent); }
+.gal-play.ch { font-weight: 700; }
+.gal-secs {
+  margin: 4px 0 0 18px;
+  padding-left: 10px;
+  border-left: 1px dashed var(--border);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.gal-play.sec {
+  font-weight: 500; font-size: 12.5px;
+  background: transparent; border-color: transparent;
+  color: var(--text-soft);
+  padding: 6px 10px;
+}
+.gal-play.sec:hover { background: var(--bg-soft); border-color: var(--border); color: var(--text); }
+
+/* Bullets slide */
+.ig-bullets {
+  list-style: none; padding: 0; margin: 0 auto;
+  max-width: 44ch; text-align: left;
+}
+.ig-bullets li {
+  font: 500 clamp(15px, 2.8vw, 19px)/1.5 var(--font-ui);
+  color: #e6dfd0;
+  padding: 9px 0 9px 30px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  animation: igin .4s ease backwards;
+}
+.ig-bullets li:nth-child(2) { animation-delay: .15s; }
+.ig-bullets li:nth-child(3) { animation-delay: .3s; }
+.ig-bullets li:nth-child(4) { animation-delay: .45s; }
+.ig-bullets li:nth-child(5) { animation-delay: .6s; }
+.ig-bullets li::before {
+  content: '✓';
+  position: absolute; left: 4px;
+  color: #f3a366; font-weight: 800;
+}
+
 /* Videos modal */
 .videos-body { width: min(600px, 100%); }
 .videos-list { max-height: 55vh; overflow-y: auto; }
