@@ -1,5 +1,5 @@
 /* Service worker: offline-first cache for La IA y Mi Motor PWA (supreme) */
-const VERSION = 'v6.0.0';
+const VERSION = 'v7.0.0';
 const STATIC_CACHE = `static-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
